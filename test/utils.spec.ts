@@ -36,6 +36,16 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
+  test("uuid", () => {
+    const input = {
+      id: "b545ec39-7c49-4991-91f1-ecc521eba456",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      id: "b545ec39-7c49-4991-91f1-ecc521eba456",
+    });
+  });
+
   test("circular object", () => {
     type Node = {
       value: number;
@@ -82,10 +92,7 @@ describe("piiMasker.maskPII()", () => {
           ssn: "*********",
           creditCard: "*********",
         },
-        contactInfo: {
-          phone: "*********",
-          email: "*********",
-        },
+        contactInfo: "*********",
       },
       metadata: {
         location: "*********",
@@ -117,15 +124,14 @@ describe("piiMasker.maskPII()", () => {
 
   test("masks sensitive keys in objects with arrays", () => {
     const input = {
-      passwords: ["qwerty123!", "P@ssw0rd", "SecurePass123!"],
+      passwords: "*********",
       coordinates: [
         [40.7128, -74.006],
         [34.0522, -118.2437],
       ],
     };
-    // qwerty123! needs uppercase to be a good password, not my fault—skill issue!
     expect(piiMasker.maskPII(input)).deep.equal({
-      passwords: ["qwerty123!", "*********", "*********"],
+      passwords: "*********",
       coordinates: "*********",
     });
   });
@@ -161,7 +167,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("handles mixed data types properly", () => {
+  test("masks a bad password because the key name was also password", () => {
     const input = {
       text: "Some non-sensitive text",
       number: 42,
@@ -172,9 +178,8 @@ describe("piiMasker.maskPII()", () => {
 
     expect(piiMasker.maskPII(input)).deep.equal({
       text: "Some non-sensitive text",
-      number: "*********",
-      // Skill issue again—see the first one
-      badpassword: "password123",
+      number: 42,
+      badpassword: "*********",
       nested: {
         email: "*********",
       },
@@ -185,6 +190,16 @@ describe("piiMasker.maskPII()", () => {
           ssn: "*********",
         },
       ],
+    });
+  });
+
+  test("does not mask a password because the key wasn't classified as pii", () => {
+    const input = {
+      badpass: "password123",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      badpass: "password123",
     });
   });
 

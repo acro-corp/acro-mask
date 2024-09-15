@@ -85,9 +85,16 @@ export class AcroMask {
       .trim();
   }
 
-  private isPIIKey(key: string): boolean {
+  private isPIIKey(key: string, path: string): boolean {
     const sanitizedKey = this.sanitizeString(key);
-    return !!SANITIZED_PII_WORDS.find((k) => k.includes(sanitizedKey));
+    return !!SANITIZED_PII_WORDS.find((k) => {
+      const match = sanitizedKey.includes(k);
+      if (match) {
+        this.logger.debug(`detected pii key on object path: ${path}`);
+      }
+
+      return match;
+    });
   }
 
   private isPIIValue(value: string, path: string): boolean {
@@ -109,13 +116,14 @@ export class AcroMask {
         value = this.sanitizeString(value);
       }
 
-      if (rejex.test(value)) {
+      const match = rejex.test(value);
+
+      if (match) {
         this.logger.debug(
-          `detected pii on object path: ${path} type: ${piiType}`,
+          `detected pii value on object path: ${path} type: ${piiType}`,
         );
-        return true;
       }
-      return false;
+      return match;
     });
     return isPII;
   }
@@ -132,7 +140,7 @@ export class AcroMask {
           : `${path}${path ? "." : ""}${key}`;
 
       // Check for PII key names
-      if (typeof key === "string" && this.isPIIKey(key)) {
+      if (typeof key === "string" && this.isPIIKey(key, newPath)) {
         return this.mask;
       }
 
