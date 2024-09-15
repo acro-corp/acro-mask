@@ -148,17 +148,18 @@ export class AcroMask {
           ? `${path}[${key}]`
           : `${path}${path ? "." : ""}${key}`;
 
+      // Check for PII key names
       if (typeof key === "string" && this.isPIIKey(key, newPath)) {
-        // Check for PII key names
         return this.mask;
       }
 
+      // Check if its a stringified json before looking to see if it has pii
       if (typeof value === "string" && this.isJSONString(value)) {
         return JSON.stringify(this.maskPII(JSON.parse(value), newPath));
       }
 
+      // Check for PII values
       if (typeof value === "string" && this.isPIIValue(value, newPath)) {
-        // Check for PII values
         return this.mask;
       }
 
