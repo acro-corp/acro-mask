@@ -36,7 +36,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("uuid", () => {
+  test("does not mask a uuid", () => {
     const input = {
       id: "b545ec39-7c49-4991-91f1-ecc521eba456",
     };
@@ -46,7 +46,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("circular object", () => {
+  test("dies on circular object", () => {
     type Node = {
       value: number;
       next?: Node;
@@ -193,7 +193,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("does not mask a password because the key wasn't classified as pii", () => {
+  test("does not mask a weak password because the key wasn't classified as pii", () => {
     const input = {
       badpass: "password123",
     };
@@ -203,20 +203,17 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("doesn't touch non-sensitive data", () => {
+  test("masks a strong password even tho the key wasn't classified as pii", () => {
     const input = {
-      name: "Public Figure",
-      occupation: "Politician",
-      email: "contact@government.com",
+      udontknowlol: "7leavesBobatEA!!",
     };
+
     expect(piiMasker.maskPII(input)).deep.equal({
-      name: "*********",
-      occupation: "Politician",
-      email: "*********",
+      udontknowlol: "*********",
     });
   });
 
-  test("handles empty objects and arrays gracefully", () => {
+  test("empty objects and arrays", () => {
     const input = {
       emptyObject: {},
       emptyArray: [],
@@ -231,7 +228,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("properly masks credit card numbers", () => {
+  test("masks credit card numbers", () => {
     const input = {
       visa: "4111 1111 1111 1111",
       mastercard: "5555-5555-5555-4444",
@@ -244,7 +241,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("accurately identifies and masks good passwords", () => {
+  test("masks good passwords", () => {
     const input = {
       weak: "password123",
       strong: "P@ssw0rd!23",
