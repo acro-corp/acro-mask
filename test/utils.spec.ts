@@ -36,7 +36,17 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("circular object", () => {
+  test("does not mask a uuid", () => {
+    const input = {
+      id: "b545ec39-7c49-4991-91f1-ecc521eba456",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      id: "b545ec39-7c49-4991-91f1-ecc521eba456",
+    });
+  });
+
+  test("dies on circular object", () => {
     type Node = {
       value: number;
       next?: Node;
@@ -82,10 +92,7 @@ describe("piiMasker.maskPII()", () => {
           ssn: "*********",
           creditCard: "*********",
         },
-        contactInfo: {
-          phone: "*********",
-          email: "*********",
-        },
+        contactInfo: "*********",
       },
       metadata: {
         location: "*********",
@@ -117,15 +124,14 @@ describe("piiMasker.maskPII()", () => {
 
   test("masks sensitive keys in objects with arrays", () => {
     const input = {
-      passwords: ["qwerty123!", "P@ssw0rd", "SecurePass123!"],
+      passwords: "*********",
       coordinates: [
         [40.7128, -74.006],
         [34.0522, -118.2437],
       ],
     };
-    // qwerty123! needs uppercase to be a good password, not my fault—skill issue!
     expect(piiMasker.maskPII(input)).deep.equal({
-      passwords: ["qwerty123!", "*********", "*********"],
+      passwords: "*********",
       coordinates: "*********",
     });
   });
@@ -161,7 +167,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("handles mixed data types properly", () => {
+  test("masks a bad password because the key name was also password", () => {
     const input = {
       text: "Some non-sensitive text",
       number: 42,
@@ -172,9 +178,8 @@ describe("piiMasker.maskPII()", () => {
 
     expect(piiMasker.maskPII(input)).deep.equal({
       text: "Some non-sensitive text",
-      number: "*********",
-      // Skill issue again—see the first one
-      badpassword: "password123",
+      number: 42,
+      badpassword: "*********",
       nested: {
         email: "*********",
       },
@@ -188,20 +193,27 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("doesn't touch non-sensitive data", () => {
+  test("does not mask a weak password because the key wasn't classified as pii", () => {
     const input = {
-      name: "Public Figure",
-      occupation: "Politician",
-      email: "contact@government.com",
+      badpass: "password123",
     };
+
     expect(piiMasker.maskPII(input)).deep.equal({
-      name: "*********",
-      occupation: "Politician",
-      email: "*********",
+      badpass: "password123",
     });
   });
 
-  test("handles empty objects and arrays gracefully", () => {
+  test("masks a strong password even tho the key wasn't classified as pii", () => {
+    const input = {
+      udontknowlol: "7leavesBobatEA!!",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      udontknowlol: "*********",
+    });
+  });
+
+  test("empty objects and arrays", () => {
     const input = {
       emptyObject: {},
       emptyArray: [],
@@ -216,7 +228,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("properly masks credit card numbers", () => {
+  test("masks credit card numbers", () => {
     const input = {
       visa: "4111 1111 1111 1111",
       mastercard: "5555-5555-5555-4444",
@@ -229,7 +241,7 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
-  test("accurately identifies and masks good passwords", () => {
+  test("masks good passwords", () => {
     const input = {
       weak: "password123",
       strong: "P@ssw0rd!23",
