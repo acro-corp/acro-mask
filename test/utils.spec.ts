@@ -254,4 +254,34 @@ describe("piiMasker.maskPII()", () => {
       veryStrong: "*********",
     });
   });
+
+  test("stringified json", () => {
+    const input = {
+      agents: JSON.stringify([
+        {
+          type: "user",
+          id: "user_webjwejewbweBJDDDW",
+          meta: {
+            ip: "193.142.146.111",
+            userAgent:
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            clerkUserId: "user_webjwejewbweBJDDDW",
+          },
+        },
+      ]),
+    };
+    expect(piiMasker.maskPII(input)).deep.equal({
+      agents: JSON.stringify([
+        {
+          type: "user",
+          id: "user_webjwejewbweBJDDDW",
+          meta: {
+            ip: "*********",
+            userAgent: "*********",
+            clerkUserId: "user_webjwejewbweBJDDDW",
+          },
+        },
+      ]),
+    });
+  });
 });
