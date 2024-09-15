@@ -36,6 +36,27 @@ describe("piiMasker.maskPII()", () => {
     });
   });
 
+  test("circular object", () => {
+    type Node = {
+      value: number;
+      next?: Node;
+    };
+
+    const node1: Node = { value: 1 };
+    const node2: Node = { value: 2 };
+    const node3: Node = { value: 3 };
+
+    // Creating circular references
+    node1.next = node2;
+    node2.next = node3;
+    node3.next = node1;
+    try {
+      piiMasker.maskPII(node1);
+    } catch (e) {
+      expect(e.message).deep.equal("Maximum call stack size exceeded");
+    }
+  });
+
   test("masks sensitive keys from a nested object", () => {
     const input = {
       user: {
