@@ -85,6 +85,15 @@ export class AcroMask {
       .trim();
   }
 
+  private isJSONString(stringInQuestion: string) {
+    try {
+      // array or object
+      return typeof JSON.parse(stringInQuestion) === "object";
+    } catch (e) {
+      return false;
+    }
+  }
+
   private isPIIKey(key: string, path: string): boolean {
     const sanitizedKey = this.sanitizeString(key);
     return !!SANITIZED_PII_WORDS.find((k) => {
@@ -142,6 +151,11 @@ export class AcroMask {
       // Check for PII key names
       if (typeof key === "string" && this.isPIIKey(key, newPath)) {
         return this.mask;
+      }
+
+      // Check if its a stringified json before looking to see if it has pii
+      if (typeof value === "string" && this.isJSONString(value)) {
+        return JSON.stringify(this.maskPII(JSON.parse(value), newPath));
       }
 
       // Check for PII values
