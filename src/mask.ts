@@ -29,11 +29,15 @@ export class AcroMask {
   maskLevel: MaskLevel;
   _logger: Function | null;
   _logLevel: LogLevel;
+  removeFields: string[];
+  saveFields: string[];
 
   constructor(options?: {
     maskLevel?: MaskLevel;
     logger?: Function;
     logLevel?: LogLevel;
+    removeFields?: string[];
+    saveFields?: string[];
   }) {
     this._logLevel = options?.logLevel || LogLevel.warn;
     this._logger =
@@ -52,6 +56,10 @@ export class AcroMask {
 
     this.maskLevel = options?.maskLevel || MaskLevel.REMOVE;
     this.mask = "*********";
+    this.saveFields =
+      options?.saveFields?.map((k) => this.sanitizeString(k)) || [];
+    this.removeFields =
+      options?.removeFields?.map((k) => this.sanitizeString(k)) || [];
   }
 
   /**
@@ -155,9 +163,18 @@ export class AcroMask {
         : SANITIZED_PII_WORDS_REMOVE;
 
     return !!piiWords.find((k) => {
+      if (this.removeFields.includes(sanitizedKey)) {
+        this.logger.debug(`You detected pii key on object path: ${path}`);
+        return true;
+      }
+
+      if (this.saveFields.includes(sanitizedKey)) {
+        return false;
+      }
+
       const match = sanitizedKey.includes(k);
       if (match) {
-        this.logger.debug(`detected pii key on object path: ${path}`);
+        this.logger.debug(`Acro detected pii key on object path: ${path}`);
       }
 
       return match;
@@ -172,7 +189,7 @@ export class AcroMask {
 
       if (match) {
         this.logger.debug(
-          `detected pii value on object path: ${path} type: ${piiType}`,
+          `Acro detected pii value on object path: ${path} type: ${piiType}`,
         );
       }
       return match;

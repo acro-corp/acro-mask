@@ -775,4 +775,35 @@ describe("piiMasker.maskPII()", () => {
       });
     });
   });
+
+  describe("removeFields saveFields", () => {
+    const piiMasker = new AcroMask({
+      maskLevel: MaskLevel.HIDE,
+      removeFields: ["pwn", "iDontListenToRules", "s"],
+      saveFields: ["secret", "userAgent"],
+    });
+
+    test("overrides", () => {
+      const input = {
+        secret: "istolecharleslambo",
+        pwn: "y me",
+        idontlistentorules:
+          "this shud be masked even tho the removed field is not formatted correctly",
+        ssssss: "should not be masked",
+        headers: {
+          "user-agent": "blah()()()()()BLAH",
+        },
+      };
+
+      expect(piiMasker.maskPII(input)).deep.equal({
+        secret: "istolecharleslambo",
+        pwn: "*********",
+        idontlistentorules: "*********",
+        ssssss: "should not be masked",
+        headers: {
+          "user-agent": "blah()()()()()BLAH",
+        },
+      });
+    });
+  });
 });
