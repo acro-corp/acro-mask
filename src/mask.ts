@@ -16,15 +16,10 @@
  */
 
 import {
-  CREDIT_CARD_REJEX,
-  EMAIL_REJEX,
-  IPV4_REJEX,
-  IPV6_REJEX,
-  LAT_LONG_REJEX,
-  PASSWORD_REJEX,
-  PHONE_NUMBER_REJEX,
-  SANITIZED_PII_WORDS,
-  SSN_REJEX,
+  HIDE_REGEX,
+  REMOVE_REGEX,
+  SANITIZED_PII_WORDS_HIDE,
+  SANITIZED_PII_WORDS_REMOVE,
 } from "./constants";
 import { Logger, LogLevel, MaskLevel } from "./types";
 
@@ -77,7 +72,12 @@ export class AcroMask {
 
   private isPIIKey(key: string, path: string): boolean {
     const sanitizedKey = this.sanitizeString(key);
-    return !!SANITIZED_PII_WORDS.find((k) => {
+    const piiWords =
+      this.maskLevel === MaskLevel.HIDE
+        ? SANITIZED_PII_WORDS_HIDE
+        : SANITIZED_PII_WORDS_REMOVE;
+
+    return !!piiWords.find((k) => {
       const match = sanitizedKey.includes(k);
       if (match) {
         this.logger.debug(`detected pii key on object path: ${path}`);
@@ -88,25 +88,14 @@ export class AcroMask {
   }
 
   private isPIIValue(value: string, path: string): boolean {
-    const isPII = [
-      { rejex: SSN_REJEX, piiType: "ssn" },
-      { rejex: IPV4_REJEX, piiType: "ipv4" },
-      { rejex: IPV6_REJEX, piiType: "ipv6" },
-      { rejex: LAT_LONG_REJEX, piiType: "lat_long" },
-      { rejex: PHONE_NUMBER_REJEX, piiType: "phone_number" },
-      { rejex: PASSWORD_REJEX, piiType: "password" },
-      { rejex: EMAIL_REJEX, piiType: "email" },
-      {
-        rejex: CREDIT_CARD_REJEX,
-        piiType: "card_number",
-        sanitize: true,
-      },
-    ].some(({ rejex, piiType, sanitize }) => {
+    const piiWords =
+      this.maskLevel === MaskLevel.HIDE ? HIDE_REGEX : REMOVE_REGEX;
+    const isPII = piiWords.some(({ regex, piiType, sanitize }) => {
       if (sanitize) {
         value = this.sanitizeString(value);
       }
 
-      const match = rejex.test(value);
+      const match = regex.test(value);
 
       if (match) {
         this.logger.debug(
