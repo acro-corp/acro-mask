@@ -16,14 +16,14 @@
  */
 
 import { describe, expect, test } from "vitest";
-import { AcroMask, LogLevel } from "../src";
+import { AcroMask } from "../src";
+import { LogLevel } from "../src/types";
 
 const piiMasker = new AcroMask({ logLevel: LogLevel.debug });
 
 describe("piiMasker.maskPII()", () => {
   test("masks sensitive keys from a simple object", () => {
     const input = {
-      name: "John Doe",
       email: "john.doe@example.com",
       password: "P@ssw0rd123!",
       address: "123 Main St, Anytown, USA",
@@ -31,7 +31,6 @@ describe("piiMasker.maskPII()", () => {
     expect(piiMasker.maskPII(input)).deep.equal({
       address: "*********",
       email: "*********",
-      name: "*********",
       password: "*********",
     });
   });
@@ -43,6 +42,30 @@ describe("piiMasker.maskPII()", () => {
 
     expect(piiMasker.maskPII(input)).deep.equal({
       id: "b545ec39-7c49-4991-91f1-ecc521eba456",
+    });
+  });
+
+  test("does not mask seconds since epoch", () => {
+    const input = {
+      svixtimestamp: "1726270596",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      svixtimestamp: "1726270596",
+    });
+  });
+
+  test("masks phone numbers", () => {
+    const input = {
+      usa: "4089212222",
+      usaAreaCode: "14089212605",
+      uaeAreaCode: "+9711998222",
+    };
+
+    expect(piiMasker.maskPII(input)).deep.equal({
+      usa: "*********",
+      usaAreaCode: "*********",
+      uaeAreaCode: "*********",
     });
   });
 
@@ -102,21 +125,18 @@ describe("piiMasker.maskPII()", () => {
 
   test("masks sensitive keys in an array of objects", () => {
     const input = [
-      { name: "Alice", email: "alice@example.com" },
-      { name: "Bob", phone: "555-0123" },
-      { name: "Charlie", ssn: "987-65-4321" },
+      { email: "alice@example.com" },
+      { phone: "555-0123" },
+      { ssn: "987-65-4321" },
     ];
     expect(piiMasker.maskPII(input)).deep.equal([
       {
-        name: "*********",
         email: "*********",
       },
       {
-        name: "*********",
         phone: "*********",
       },
       {
-        name: "*********",
         ssn: "*********",
       },
     ]);

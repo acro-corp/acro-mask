@@ -26,25 +26,23 @@ import {
   SANITIZED_PII_WORDS,
   SSN_REJEX,
 } from "./constants";
-import { Logger, LogLevel } from "./logger";
+import { Logger, LogLevel, MaskLevel } from "./types";
 
 export class AcroMask {
-  private mask: string;
-
-  _logger: Function | null =
-    typeof console !== "undefined" ? console.log : null;
-  _logLevel: LogLevel = LogLevel.warn;
-
+  mask: string;
   logger: Logger;
+  maskLevel: MaskLevel;
+  _logger: Function | null;
+  _logLevel: LogLevel;
 
-  constructor(options?: { logger?: Function; logLevel?: LogLevel }) {
-    if (options?.logLevel) {
-      this._logLevel = options?.logLevel;
-    }
-
-    if (options?.logger) {
-      this._logger = options?.logger;
-    }
+  constructor(options?: {
+    maskLevel?: MaskLevel;
+    logger?: Function;
+    logLevel?: LogLevel;
+  }) {
+    this._logLevel = options?.logLevel || LogLevel.warn;
+    this._logger =
+      options?.logger || (typeof console !== "undefined" ? console.log : null);
 
     this.logger = {
       off: this.log.bind(this, LogLevel.off),
@@ -57,25 +55,8 @@ export class AcroMask {
       all: this.log.bind(this, LogLevel.all),
     };
 
+    this.maskLevel = this.maskLevel || MaskLevel.REMOVE;
     this.mask = "*********";
-  }
-
-  /**
-   * Logger function
-   * @param {LogLevel} level
-   * @param {string} message
-   */
-  log(level: LogLevel, message?: string, ...args: any) {
-    if (
-      level <= this._logLevel &&
-      this._logger &&
-      typeof this._logger === "function"
-    ) {
-      this._logger.apply(this, [
-        `[${LogLevel[level]}] [@acro-sdk/store] ${message || ""}`,
-        ...args,
-      ]);
-    }
   }
 
   private sanitizeString(keyName: string): string {
@@ -138,11 +119,11 @@ export class AcroMask {
   }
 
   maskPII(obj: Record<string, any> | Array<any>, currentPath = ""): Object {
-    const recursivePIIMarker = <V>(
-      value: V,
+    const recursivePIIMarker = (
+      value: any,
       key: string | number,
       path: string,
-    ): V | string => {
+    ): any | string => {
       const newPath =
         typeof key === "number"
           ? `${path}[${key}]`
@@ -165,7 +146,7 @@ export class AcroMask {
 
       // Recursively process nested objects or arrays
       if (value && typeof value === "object") {
-        return this.maskPII(value, newPath) as V;
+        return this.maskPII(value, newPath);
       }
 
       return value;
@@ -196,5 +177,23 @@ export class AcroMask {
     }
 
     return obj;
+  }
+
+  /**
+   * Logger function
+   * @param {LogLevel} level
+   * @param {string} message
+   */
+  log(level: LogLevel, message?: string, ...args: any) {
+    if (
+      level <= this._logLevel &&
+      this._logger &&
+      typeof this._logger === "function"
+    ) {
+      this._logger.apply(this, [
+        `[${LogLevel[level]}] [@acro-sdk/store] ${message || ""}`,
+        ...args,
+      ]);
+    }
   }
 }

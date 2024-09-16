@@ -20,6 +20,8 @@ export type Logger = Record<
   Function
 >;
 
+export type LoggerFunction = (level: LogLevel, ...args: any[]) => void;
+
 export enum LogLevel {
   "off" = 0,
   "fatal" = 100,
@@ -29,4 +31,9 @@ export enum LogLevel {
   "debug" = 500,
   "trace" = 600,
   "all" = Number.MAX_VALUE,
+}
+
+export enum MaskLevel {
+  REMOVE = "REMOVE", // Masks very obviously critical data -- data that is removed will not be searchable and will not ever be displayed or stored anywhere
+  HIDE = "HIDE", // Masks almost obviously critical data -- data this is hidden will be searchable but will not be displayed unless requested. Which we will also track lol.
 }
