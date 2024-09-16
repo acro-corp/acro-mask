@@ -16,35 +16,32 @@
  */
 
 import {
-  CREDIT_CARD_REJEX,
-  EMAIL_REJEX,
-  IPV4_REJEX,
-  IPV6_REJEX,
-  LAT_LONG_REJEX,
-  PASSWORD_REJEX,
-  PHONE_NUMBER_REJEX,
-  SANITIZED_PII_WORDS,
-  SSN_REJEX,
+  HIDE_REGEX,
+  REMOVE_REGEX,
+  SANITIZED_PII_WORDS_HIDE,
+  SANITIZED_PII_WORDS_REMOVE,
 } from "./constants";
-import { Logger, LogLevel } from "./logger";
+import { Logger, LogLevel, MaskLevel } from "./types";
 
 export class AcroMask {
-  private mask: string;
-
-  _logger: Function | null =
-    typeof console !== "undefined" ? console.log : null;
-  _logLevel: LogLevel = LogLevel.warn;
-
+  mask: string;
   logger: Logger;
+  maskLevel: MaskLevel;
+  _logger: Function | null;
+  _logLevel: LogLevel;
+  removeFields: string[];
+  saveFields: string[];
 
-  constructor(options?: { logger?: Function; logLevel?: LogLevel }) {
-    if (options?.logLevel) {
-      this._logLevel = options?.logLevel;
-    }
-
-    if (options?.logger) {
-      this._logger = options?.logger;
-    }
+  constructor(options?: {
+    maskLevel?: MaskLevel;
+    logger?: Function;
+    logLevel?: LogLevel;
+    removeFields?: string[];
+    saveFields?: string[];
+  }) {
+    this._logLevel = options?.logLevel || LogLevel.warn;
+    this._logger =
+      options?.logger || (typeof console !== "undefined" ? console.log : null);
 
     this.logger = {
       off: this.log.bind(this, LogLevel.off),
@@ -57,92 +54,36 @@ export class AcroMask {
       all: this.log.bind(this, LogLevel.all),
     };
 
+    this.maskLevel = options?.maskLevel || MaskLevel.REMOVE;
     this.mask = "*********";
+    this.saveFields =
+      options?.saveFields?.map((k) => this.sanitizeString(k)) || [];
+    this.removeFields =
+      options?.removeFields?.map((k) => this.sanitizeString(k)) || [];
   }
 
   /**
-   * Logger function
-   * @param {LogLevel} level
-   * @param {string} message
+   * Masks any nested values in any objects or arrays.
+   * @param obj The object that needs to have its data masked
+   * @param currentPath The
+   * @returns Masked Object
    */
-  log(level: LogLevel, message?: string, ...args: any) {
-    if (
-      level <= this._logLevel &&
-      this._logger &&
-      typeof this._logger === "function"
-    ) {
-      this._logger.apply(this, [
-        `[${LogLevel[level]}] [@acro-sdk/store] ${message || ""}`,
-        ...args,
-      ]);
-    }
+  maskPII(obj: Record<string, any> | Array<any>) {
+    return this.maskPIIHelper(obj);
   }
 
-  private sanitizeString(keyName: string): string {
-    return keyName
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toLowerCase()
-      .trim();
-  }
-
-  private isJSONString(stringInQuestion: string) {
-    try {
-      // array or object
-      return typeof JSON.parse(stringInQuestion) === "object";
-    } catch (e) {
-      return false;
-    }
-  }
-
-  private isPIIKey(key: string, path: string): boolean {
-    const sanitizedKey = this.sanitizeString(key);
-    return !!SANITIZED_PII_WORDS.find((k) => {
-      const match = sanitizedKey.includes(k);
-      if (match) {
-        this.logger.debug(`detected pii key on object path: ${path}`);
-      }
-
-      return match;
-    });
-  }
-
-  private isPIIValue(value: string, path: string): boolean {
-    const isPII = [
-      { rejex: SSN_REJEX, piiType: "ssn" },
-      { rejex: IPV4_REJEX, piiType: "ipv4" },
-      { rejex: IPV6_REJEX, piiType: "ipv6" },
-      { rejex: LAT_LONG_REJEX, piiType: "lat_long" },
-      { rejex: PHONE_NUMBER_REJEX, piiType: "phone_number" },
-      { rejex: PASSWORD_REJEX, piiType: "password" },
-      { rejex: EMAIL_REJEX, piiType: "email" },
-      {
-        rejex: CREDIT_CARD_REJEX,
-        piiType: "card_number",
-        sanitize: true,
-      },
-    ].some(({ rejex, piiType, sanitize }) => {
-      if (sanitize) {
-        value = this.sanitizeString(value);
-      }
-
-      const match = rejex.test(value);
-
-      if (match) {
-        this.logger.debug(
-          `detected pii value on object path: ${path} type: ${piiType}`,
-        );
-      }
-      return match;
-    });
-    return isPII;
-  }
-
-  maskPII(obj: Record<string, any> | Array<any>, currentPath = ""): Object {
-    const recursivePIIMarker = <V>(
-      value: V,
+  /**
+   * Recurisve masker
+   */
+  private maskPIIHelper(
+    obj: Record<string, any> | Array<any>,
+    currentPath = "",
+  ): Object {
+    const recursivePIIMarker = (
+      value: any,
       key: string | number,
       path: string,
-    ): V | string => {
+    ): any | string => {
       const newPath =
         typeof key === "number"
           ? `${path}[${key}]`
@@ -155,7 +96,7 @@ export class AcroMask {
 
       // Check if its a stringified json before looking to see if it has pii
       if (typeof value === "string" && this.isJSONString(value)) {
-        return JSON.stringify(this.maskPII(JSON.parse(value), newPath));
+        return JSON.stringify(this.maskPIIHelper(JSON.parse(value), newPath));
       }
 
       // Check for PII values
@@ -165,7 +106,7 @@ export class AcroMask {
 
       // Recursively process nested objects or arrays
       if (value && typeof value === "object") {
-        return this.maskPII(value, newPath) as V;
+        return this.maskPIIHelper(value, newPath);
       }
 
       return value;
@@ -196,5 +137,81 @@ export class AcroMask {
     }
 
     return obj;
+  }
+
+  private sanitizeString(keyName: string): string {
+    return keyName
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  private isJSONString(stringInQuestion: string) {
+    try {
+      // array or object
+      return typeof JSON.parse(stringInQuestion) === "object";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  private isPIIKey(key: string, path: string): boolean {
+    const sanitizedKey = this.sanitizeString(key);
+    const piiWords =
+      this.maskLevel === MaskLevel.HIDE
+        ? SANITIZED_PII_WORDS_HIDE
+        : SANITIZED_PII_WORDS_REMOVE;
+
+    return !!piiWords.find((k) => {
+      if (this.removeFields.includes(sanitizedKey)) {
+        this.logger.debug(`You detected pii key on object path: ${path}`);
+        return true;
+      }
+
+      if (this.saveFields.includes(sanitizedKey)) {
+        return false;
+      }
+
+      const match = sanitizedKey.includes(k);
+      if (match) {
+        this.logger.debug(`Acro detected pii key on object path: ${path}`);
+      }
+
+      return match;
+    });
+  }
+
+  private isPIIValue(value: string, path: string): boolean {
+    const piiWords =
+      this.maskLevel === MaskLevel.HIDE ? HIDE_REGEX : REMOVE_REGEX;
+    const isPII = piiWords.some(({ regex, piiType, sanitize }) => {
+      const match = regex.test(sanitize ? this.sanitizeString(value) : value);
+
+      if (match) {
+        this.logger.debug(
+          `Acro detected pii value on object path: ${path} type: ${piiType}`,
+        );
+      }
+      return match;
+    });
+    return isPII;
+  }
+
+  /**
+   * Logger function
+   * @param {LogLevel} level
+   * @param {string} message
+   */
+  log(level: LogLevel, message?: string, ...args: any) {
+    if (
+      level <= this._logLevel &&
+      this._logger &&
+      typeof this._logger === "function"
+    ) {
+      this._logger.apply(this, [
+        `[${LogLevel[level]}] [@acro-sdk/store] ${message || ""}`,
+        ...args,
+      ]);
+    }
   }
 }
