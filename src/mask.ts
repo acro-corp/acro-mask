@@ -50,8 +50,85 @@ export class AcroMask {
       all: this.log.bind(this, LogLevel.all),
     };
 
-    this.maskLevel = this.maskLevel || MaskLevel.REMOVE;
+    this.maskLevel = options?.maskLevel || MaskLevel.REMOVE;
     this.mask = "*********";
+  }
+
+  /**
+   * Masks any nested values in any objects or arrays.
+   * @param obj The object that needs to have its data masked
+   * @param currentPath The
+   * @returns Masked Object
+   */
+  maskPII(obj: Record<string, any> | Array<any>) {
+    return this.maskPIIHelper(obj);
+  }
+
+  /**
+   * Recurisve masker
+   */
+  private maskPIIHelper(
+    obj: Record<string, any> | Array<any>,
+    currentPath = "",
+  ): Object {
+    const recursivePIIMarker = (
+      value: any,
+      key: string | number,
+      path: string,
+    ): any | string => {
+      const newPath =
+        typeof key === "number"
+          ? `${path}[${key}]`
+          : `${path}${path ? "." : ""}${key}`;
+
+      // Check for PII key names
+      if (typeof key === "string" && this.isPIIKey(key, newPath)) {
+        return this.mask;
+      }
+
+      // Check if its a stringified json before looking to see if it has pii
+      if (typeof value === "string" && this.isJSONString(value)) {
+        return JSON.stringify(this.maskPIIHelper(JSON.parse(value), newPath));
+      }
+
+      // Check for PII values
+      if (typeof value === "string" && this.isPIIValue(value, newPath)) {
+        return this.mask;
+      }
+
+      // Recursively process nested objects or arrays
+      if (value && typeof value === "object") {
+        return this.maskPIIHelper(value, newPath);
+      }
+
+      return value;
+    };
+
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      const sanitizedArray = obj
+        .map((item, index) => recursivePIIMarker(item, index, currentPath))
+        .filter((item) => item !== undefined);
+      return sanitizedArray;
+    }
+
+    // Handle objects
+    if (obj && typeof obj === "object") {
+      const sanitizedObj = Object.entries(obj).reduce(
+        (acc: any, [key, value]) => {
+          const processedValue = recursivePIIMarker(value, key, currentPath);
+          if (processedValue !== undefined) {
+            acc[key] = processedValue;
+          }
+          return acc;
+        },
+        {},
+      );
+
+      return sanitizedObj;
+    }
+
+    return obj;
   }
 
   private sanitizeString(keyName: string): string {
@@ -91,11 +168,7 @@ export class AcroMask {
     const piiWords =
       this.maskLevel === MaskLevel.HIDE ? HIDE_REGEX : REMOVE_REGEX;
     const isPII = piiWords.some(({ regex, piiType, sanitize }) => {
-      if (sanitize) {
-        value = this.sanitizeString(value);
-      }
-
-      const match = regex.test(value);
+      const match = regex.test(sanitize ? this.sanitizeString(value) : value);
 
       if (match) {
         this.logger.debug(
@@ -105,67 +178,6 @@ export class AcroMask {
       return match;
     });
     return isPII;
-  }
-
-  maskPII(obj: Record<string, any> | Array<any>, currentPath = ""): Object {
-    const recursivePIIMarker = (
-      value: any,
-      key: string | number,
-      path: string,
-    ): any | string => {
-      const newPath =
-        typeof key === "number"
-          ? `${path}[${key}]`
-          : `${path}${path ? "." : ""}${key}`;
-
-      // Check for PII key names
-      if (typeof key === "string" && this.isPIIKey(key, newPath)) {
-        return this.mask;
-      }
-
-      // Check if its a stringified json before looking to see if it has pii
-      if (typeof value === "string" && this.isJSONString(value)) {
-        return JSON.stringify(this.maskPII(JSON.parse(value), newPath));
-      }
-
-      // Check for PII values
-      if (typeof value === "string" && this.isPIIValue(value, newPath)) {
-        return this.mask;
-      }
-
-      // Recursively process nested objects or arrays
-      if (value && typeof value === "object") {
-        return this.maskPII(value, newPath);
-      }
-
-      return value;
-    };
-
-    // Handle arrays
-    if (Array.isArray(obj)) {
-      const sanitizedArray = obj
-        .map((item, index) => recursivePIIMarker(item, index, currentPath))
-        .filter((item) => item !== undefined);
-      return sanitizedArray;
-    }
-
-    // Handle objects
-    if (obj && typeof obj === "object") {
-      const sanitizedObj = Object.entries(obj).reduce(
-        (acc: any, [key, value]) => {
-          const processedValue = recursivePIIMarker(value, key, currentPath);
-          if (processedValue !== undefined) {
-            acc[key] = processedValue;
-          }
-          return acc;
-        },
-        {},
-      );
-
-      return sanitizedObj;
-    }
-
-    return obj;
   }
 
   /**
