@@ -89,19 +89,33 @@ export class AcroMask {
           ? `${path}[${key}]`
           : `${path}${path ? "." : ""}${key}`;
 
-      // Check for PII key names
-      if (typeof key === "string" && this.isPIIKey(key, newPath)) {
-        return this.mask;
+      if (typeof key === "string") {
+        // Check save fields and return value if client wants to save
+        if (this.saveFields.includes(this.sanitizeString(key))) {
+          return value;
+        }
+
+        // Check remove fields and return mask if client wants to remove
+        if (this.removeFields.includes(this.sanitizeString(key))) {
+          return this.mask;
+        }
+
+        // Check for PII key names
+        if (this.isPIIKey(key, path)) {
+          return this.mask;
+        }
       }
 
-      // Check if its a stringified json before looking to see if it has pii
-      if (typeof value === "string" && this.isJSONString(value)) {
-        return JSON.stringify(this.maskPIIHelper(JSON.parse(value), newPath));
-      }
+      if (typeof value === "string") {
+        // Check if its a stringified json before looking to see if it has pii
+        if (this.isJSONString(value)) {
+          return JSON.stringify(this.maskPIIHelper(JSON.parse(value), newPath));
+        }
 
-      // Check for PII values
-      if (typeof value === "string" && this.isPIIValue(value, newPath)) {
-        return this.mask;
+        // Check for PII values
+        if (this.isPIIValue(value, newPath)) {
+          return this.mask;
+        }
       }
 
       // Recursively process nested objects or arrays
@@ -163,15 +177,6 @@ export class AcroMask {
         : SANITIZED_PII_WORDS_REMOVE;
 
     return !!piiWords.find((k) => {
-      if (this.removeFields.includes(sanitizedKey)) {
-        this.logger.debug(`You detected pii key on object path: ${path}`);
-        return true;
-      }
-
-      if (this.saveFields.includes(sanitizedKey)) {
-        return false;
-      }
-
       const match = sanitizedKey.includes(k);
       if (match) {
         this.logger.debug(`Acro detected pii key on object path: ${path}`);
