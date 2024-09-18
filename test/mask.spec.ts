@@ -779,6 +779,7 @@ describe("piiMasker.maskPII()", () => {
   describe("removeFields saveFields", () => {
     const piiMasker = new AcroMask({
       maskLevel: MaskLevel.HIDE,
+      logLevel: LogLevel.debug,
       removeFields: ["pwn", "iDontListenToRules", "s"],
       saveFields: ["secret", "userAgent"],
     });
@@ -791,7 +792,7 @@ describe("piiMasker.maskPII()", () => {
           "this shud be masked even tho the removed field is not formatted correctly",
         ssssss: "should not be masked",
         headers: {
-          "user-agent": "blah()()()()()BLAH",
+          "user-agent": "Go-http-client/1.1",
         },
       };
 
@@ -801,7 +802,7 @@ describe("piiMasker.maskPII()", () => {
         idontlistentorules: "*********",
         ssssss: "should not be masked",
         headers: {
-          "user-agent": "blah()()()()()BLAH",
+          "user-agent": "Go-http-client/1.1",
         },
       });
     });
