@@ -54,6 +54,7 @@ describe("piiMasker.maskPII()", () => {
         mrn: "MRN123456",
         insurancenumber: "INS123456",
         taxid: "TAX123456",
+        debitCardNumber: "000000000000000000000",
       };
 
       expect(piiMasker.maskPII(input)).deep.equal({
@@ -86,6 +87,7 @@ describe("piiMasker.maskPII()", () => {
         mrn: "*********",
         insurancenumber: "*********",
         taxid: "*********",
+        debitCardNumber: "*********",
       });
     });
 
@@ -209,6 +211,9 @@ describe("piiMasker.maskPII()", () => {
         streetaddress: "123 Main St",
         city: "New York",
         postalcode: "10001",
+        bank: {
+          info: "w2ow",
+        },
       };
 
       expect(piiMasker.maskPII(input)).deep.equal({
@@ -264,6 +269,7 @@ describe("piiMasker.maskPII()", () => {
         streetaddress: "*********",
         city: "*********",
         postalcode: "*********",
+        bank: "*********",
       });
     });
 
