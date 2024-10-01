@@ -20,6 +20,7 @@ import {
   REMOVE_REGEX,
   SANITIZED_PII_WORDS_HIDE,
   SANITIZED_PII_WORDS_REMOVE,
+  SANITIZED_PII_WORDS_REMOVE_EXACT,
 } from "./constants";
 import { Logger, LogLevel, MaskLevel } from "./types";
 
@@ -175,6 +176,13 @@ export class AcroMask {
       this.maskLevel === MaskLevel.HIDE
         ? SANITIZED_PII_WORDS_HIDE
         : SANITIZED_PII_WORDS_REMOVE;
+
+    const exact = SANITIZED_PII_WORDS_REMOVE_EXACT.includes(sanitizedKey);
+
+    if (exact) {
+      this.logger.debug(`Acro detected exact pii key on object path: ${path}`);
+      return true;
+    }
 
     return !!piiWords.find((k) => {
       const match = sanitizedKey.includes(k);
