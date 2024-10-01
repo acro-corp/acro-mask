@@ -76,7 +76,6 @@ export const SANITIZED_PII_WORDS_REMOVE = [
   "privatekey",
   "certificate",
   // personal info
-  "ssn",
   "socialsecuritynumber",
   "creditcardnumber",
   "creditcard",
@@ -99,6 +98,8 @@ export const SANITIZED_PII_WORDS_REMOVE = [
   "xrealip",
   "cookie",
 ];
+
+export const SANITIZED_PII_WORDS_REMOVE_EXACT = ["ssn"];
 
 // WORDS MUST BE SANITIZED BEFORE USING THIS
 export const SANITIZED_PII_WORDS_HIDE = [

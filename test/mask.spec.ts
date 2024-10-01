@@ -269,6 +269,7 @@ describe("piiMasker.maskPII()", () => {
 
     test("masks keys that include specified keys as substrings", () => {
       const input = {
+        businessName: "Kabob Shop",
         secretApiKey: "mySecretApiKey",
         userPassword: "mySecretPassword",
         apiKey: "myApiKey",
@@ -310,6 +311,7 @@ describe("piiMasker.maskPII()", () => {
       };
 
       expect(piiMasker.maskPII(input)).deep.equal({
+        businessName: "Kabob Shop",
         secretApiKey: "*********",
         userPassword: "*********",
         apiKey: "*********",
